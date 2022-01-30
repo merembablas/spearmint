@@ -3,8 +3,9 @@ use rusqlite::{params, Connection, Result};
 
 pub mod args;
 pub mod result;
+pub mod streams;
 
-const DB_PATH: &str = "spearmint.db";
+pub const DB_PATH: &str = "spearmint.db";
 
 struct BotId {
     id: u64,
@@ -140,6 +141,28 @@ pub fn list() -> Result<Vec<result::Bot>> {
     let mut result: Vec<result::Bot> = Vec::new();
     for bot in bots {
         result.push(bot.unwrap());
+    }
+
+    Ok(result)
+}
+
+pub fn list_active() -> Result<Vec<String>> {
+    let conn = Connection::open(DB_PATH).unwrap();
+    let mut stmt = conn.prepare("SELECT * FROM bots WHERE status='ACTIVE'")?;
+    let bots = stmt.query_map([], |row| {
+        Ok(result::Bot {
+            title: row.get(1)?,
+            pair: row.get(2)?,
+            exchange: row.get(3)?,
+            strategy: row.get(4)?,
+            cycle: row.get(5)?,
+            status: row.get(14)?,
+        })
+    })?;
+
+    let mut result: Vec<String> = Vec::new();
+    for bot in bots {
+        result.push(bot.unwrap().pair);
     }
 
     Ok(result)

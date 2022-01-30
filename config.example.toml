@@ -1,7 +1,7 @@
-title="FTM_USDT_BINANCE"
+title="BTC_USDT_BINANCE"
 
 [general]
-pair="FTM USDT"
+pair="BTCUSDT"
 exchange="Binance"
 strategy="DCA"
 
