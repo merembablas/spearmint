@@ -51,10 +51,17 @@ fn main() {
         Some(Commands::Apply { file }) => {
             if let Some(config_path) = file.as_deref() {
                 let content = std::fs::read_to_string(config_path).unwrap();
-                let package_info: data::args::Config = toml::from_str(&content).unwrap();
+                let kind: data::args::Kind = toml::from_str(&content).unwrap();
 
-                let config = data::save(package_info);
-                cli::display_config(config);
+                if kind.kind == "trade channel" {
+                    let channel: data::args::Config = toml::from_str(&content).unwrap();
+                    let config = data::save(channel);
+                    cli::display_channel(config);
+                } else if kind.kind == "api binding" {
+                    let binding: data::args::ApiKey = toml::from_str(&content).unwrap();
+                    let api = data::save_api_key(binding);
+                    cli::display_api(api);
+                }
             }
         }
 

@@ -2,7 +2,7 @@ use comfy_table::Table;
 
 use crate::data;
 
-pub fn display_config(package_info: data::args::Config) {
+pub fn display_channel(package_info: data::args::Config) {
     let mut table = Table::new();
     table
         .set_header(vec!["Name", "Value"])
@@ -75,6 +75,15 @@ pub fn display_bots(bots: Vec<crate::data::result::Bot>) {
             bot.status,
         ]);
     }
+
+    println!("{}", table);
+}
+
+pub fn display_api(api: crate::data::args::ApiKey) {
+    let mut table = Table::new();
+    table
+        .set_header(vec!["Platform", "Api Key", "Secret Key"])
+        .add_row(vec![api.platform, api.api_key, api.secret_key]);
 
     println!("{}", table);
 }

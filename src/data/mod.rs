@@ -36,6 +36,17 @@ pub fn setup(path: &str) -> Result<()> {
         [],
     )?;
 
+    conn.execute(
+        "CREATE TABLE if not exists platform_api_bindings (
+            id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+            api_key                         TEXT NOT NULL,
+            secret_key                      TEXT,
+            platform                        TEXT
+        )
+    ",
+        [],
+    )?;
+
     Ok(())
 }
 
@@ -220,4 +231,48 @@ pub fn stop(name: &str) {
     } else {
         println!("Ok, nevermind then");
     }
+}
+
+pub fn save_api_key(api: args::ApiKey) -> args::ApiKey {
+    let conn = Connection::open(DB_PATH).unwrap();
+
+    let mut stmt = conn
+        .prepare("SELECT * FROM platform_api_bindings WHERE platform=:platform LIMIT 1")
+        .unwrap();
+    let platform = &api.platform;
+    let apis: Vec<Result<args::ApiKey>> = stmt
+        .query_map([platform], |row| {
+            Ok(args::ApiKey {
+                id: row.get(0)?,
+                api_key: row.get(1)?,
+                secret_key: row.get(2)?,
+                platform: row.get(3)?,
+            })
+        })
+        .unwrap()
+        .collect();
+
+    if apis.iter().count() != 0 {
+        let curr_api = apis.into_iter().next().unwrap();
+        conn.execute(
+            "UPDATE platform_api_bindings SET
+                api_key=?1,
+                secret_key=?2
+            WHERE id=?3",
+            params![api.api_key, api.secret_key, curr_api.unwrap().id],
+        )
+        .unwrap();
+    } else {
+        conn.execute(
+            "INSERT INTO platform_api_bindings (
+                api_key,
+                secret_key,
+                platform
+            ) VALUES (?1, ?2, ?3)",
+            params![api.api_key, api.secret_key, api.platform],
+        )
+        .unwrap();
+    }
+
+    api
 }
