@@ -1,0 +1,16 @@
+kind = "bot"
+title = "SUI_USDT_BINANCE"
+
+[general]
+pair = "SUIUSDT"
+platform = "binance"
+strategy = "martingle"
+
+[parameters]
+cycle = "repeat"
+first_buy_in = 10
+take_profit_ratio = 1.5
+earning_callback = -1
+
+[margin]
+margin_configuration = [[-2, 2], [-4, 4], [-6, 8], [-8, 16]]
