@@ -57,11 +57,22 @@ pub fn display_bots(bots: Vec<crate::data::result::Bot>) {
     println!("{}", table);
 }
 
-pub fn display_bind(api: crate::data::args::ApiKey) {
+pub fn display_bind(api: crate::data::result::ApiCredential) {
     let mut table = Table::new();
     table
         .set_header(vec!["Platform", "Api Key", "Secret Key"])
-        .add_row(vec![api.platform, api.api_key, api.secret_key]);
+        .add_row(vec![api.platform, api.api, api.secret]);
+
+    println!("{}", table);
+}
+
+pub fn display_balances(balances: Vec<crate::data::result::Balance>) {
+    let mut table = Table::new();
+    table.set_header(vec!["Asset", "Free"]);
+
+    for b in balances {
+        table.add_row(vec![b.asset, format!("{}", b.free)]);
+    }
 
     println!("{}", table);
 }

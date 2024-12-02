@@ -1,8 +1,8 @@
 kind = "bot"
-title = "SUI_USDT_BINANCE"
+title = "ARB_USDC_BINANCE"
 
 [general]
-pair = "SUIUSDT"
+pair = "ARBUSDC"
 platform = "binance"
 strategy = "martingle"
 
@@ -10,7 +10,7 @@ strategy = "martingle"
 cycle = "repeat"
 first_buy_in = 10
 take_profit_ratio = 1.5
-earning_callback = -1
+earning_callback = -0.2
 
 [margin]
-margin_configuration = [[-2, 2], [-4, 4], [-6, 8], [-8, 16]]
+margin_configuration = [[-1, 2], [-2, 3], [-2, 3]]

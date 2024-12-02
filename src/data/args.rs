@@ -23,20 +23,18 @@ pub struct General {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Parameters {
     pub cycle: String,
-    pub first_buy_in: f32,
-    pub take_profit_ratio: f32,
-    pub earning_callback: f32,
+    pub first_buy_in: f64,
+    pub take_profit_ratio: f64,
+    pub earning_callback: f64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Margin {
-    pub margin_configuration: Vec<Vec<f32>>,
+    pub margin_configuration: Vec<Vec<f64>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ApiKey {
-    #[serde(default)]
-    pub id: u64,
+pub struct ApiCredential {
     pub api_key: String,
     pub secret_key: String,
     pub platform: String,

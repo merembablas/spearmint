@@ -1,8 +1,8 @@
 use crate::data::action;
 use crate::data::result::Bot;
+use crate::strategy::martingle;
 use binance::websockets::*;
 use comfy_table::Table;
-use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
@@ -20,12 +20,6 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
 
     let mut web_socket: WebSockets<'_> = WebSockets::new(|event: WebsocketEvent| {
         if let WebsocketEvent::DayTicker(ticker_event) = event {
-            let mut prices: HashMap<String, f32> = HashMap::new();
-            prices.insert(
-                ticker_event.symbol.clone(),
-                ticker_event.current_close.parse().unwrap(),
-            );
-
             print!("\x1B[2J\x1B[1;1H");
 
             let bot = bots
@@ -36,6 +30,7 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
                 Ok(state) => state,
                 Err(_error) => Default::default(),
             };
+
             let wallet = action::get_wallet();
             let avg_price = action::get_avg_price(&bot.platform, &bot.pair, state.cycle);
             let avg_percent_change = action::calculate_percent_change(
@@ -55,26 +50,24 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
                 "Cycle",
                 "M.Position",
             ]);
-            for (_pair, price) in &prices {
-                table.add_row(vec![
-                    &bot.platform,
-                    &bot.pair,
-                    &format!("{}", price),
-                    &format!("{}", avg_price),
-                    &format!("{}%", avg_percent_change),
-                    &format!("{}", state.top_price),
-                    &format!("{}", wallet),
-                    &format!("{}", state.cycle),
-                    &format!("{}", state.margin_position),
-                ]);
-            }
+            table.add_row(vec![
+                &bot.platform,
+                &bot.pair,
+                &format!("{}", ticker_event.current_close),
+                &format!("{}", avg_price),
+                &format!("{}%", avg_percent_change),
+                &format!("{}", state.top_price),
+                &format!("{}", wallet),
+                &format!("{}", state.cycle),
+                &format!("{}", state.margin_position),
+            ]);
 
             println!("{}", table);
 
             if last_block_time.elapsed() >= block_interval {
                 println!("Execute strategy...");
 
-                action::execute_strategy(bot, &ticker_event.current_close);
+                martingle::execute_strategy(bot, &ticker_event.current_close);
 
                 last_block_time = Instant::now(); // Reset the timer
             }

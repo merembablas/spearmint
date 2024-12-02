@@ -1,7 +1,11 @@
 mod cli;
+mod connector;
 mod data;
+mod run;
+mod strategy;
 
 use clap::{Parser, Subcommand};
+use connector::binance;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -16,6 +20,13 @@ enum Commands {
     Apply {
         #[clap(short, long, parse(from_os_str), value_name = "FILE")]
         file: Option<PathBuf>,
+    },
+
+    Test {},
+
+    Account {
+        #[clap(short, long)]
+        platform: String,
     },
 
     Status {
@@ -63,12 +74,12 @@ fn main() {
                 let kind: data::args::Kind = toml::from_str(&content).unwrap();
 
                 if kind.kind == "bot" {
-                    let channel: data::args::Config = toml::from_str(&content).unwrap();
-                    let config = data::save(channel);
+                    let bot: data::args::Config = toml::from_str(&content).unwrap();
+                    let config = data::bot::save(bot);
                     cli::display_bot(config);
                 } else if kind.kind == "bind" {
-                    let binding: data::args::ApiKey = toml::from_str(&content).unwrap();
-                    let api = data::save_api_key(binding);
+                    let binding: data::args::ApiCredential = toml::from_str(&content).unwrap();
+                    let api = data::bind::save(binding);
                     cli::display_bind(api);
                 }
             }
@@ -90,14 +101,13 @@ fn main() {
             data::delete(name);
         }
 
-        Some(Commands::List {}) => {
-            let bots = data::list();
-            cli::display_bots(bots.unwrap());
-        }
+        Some(Commands::List {}) => match data::bot::all() {
+            Ok(bots) => cli::display_bots(bots),
+            Err(e) => println!("error: {}", e),
+        },
 
-        Some(Commands::Bot { name }) => {
-            let bot = data::get_bot(name).unwrap();
-            cli::display_bot(data::args::Config {
+        Some(Commands::Bot { name }) => match data::bot::get(name) {
+            Ok(bot) => cli::display_bot(data::args::Config {
                 title: bot.title,
                 general: data::args::General {
                     pair: bot.pair,
@@ -113,17 +123,30 @@ fn main() {
                 margin: data::args::Margin {
                     margin_configuration: bot.margin.margin_configuration,
                 },
-            });
-        }
+            }),
+            Err(e) => println!("error: {}", e),
+        },
 
         Some(Commands::Setup { path }) => {
             data::setup(path).expect("Failed to create database");
         }
 
         Some(Commands::Run {}) => {
-            let bots: Vec<_> = data::list_active().unwrap();
+            let bots: Vec<data::result::Bot> = data::bot::active().unwrap();
             data::streams::run("binance", bots);
         }
+
+        Some(Commands::Account { platform }) => {
+            let api_credential = data::bind::get(platform);
+            let account = binance::Account {
+                api_key: api_credential.api,
+                api_secret: api_credential.secret,
+            };
+
+            cli::display_balances(account.get_balances());
+        }
+
+        Some(Commands::Test {}) => {}
 
         None => {}
     }

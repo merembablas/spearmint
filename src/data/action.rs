@@ -1,15 +1,16 @@
+use super::result;
 use crate::data;
-use crate::data::result;
 use chrono;
 use rusqlite::{params, Connection, Result};
 
+#[allow(dead_code)]
 pub fn execute_strategy(bot: &result::Bot, price: &str) {
     let trade = match get_latest_trade(&bot.platform, &bot.pair) {
         Ok(trade) => trade,
         Err(_error) => Default::default(),
     };
 
-    let fprice = price.parse::<f32>().unwrap();
+    let fprice = price.parse::<f64>().unwrap();
 
     if trade.status == "OPEN" {
         let state = match get_latest_state(&bot.platform, &bot.pair) {
@@ -34,7 +35,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
                     qty: trade.qty,
                     platform: bot.platform.clone(),
                     status: String::from("CLOSE"),
-                    timestamp: chrono::offset::Utc::now().timestamp(),
+                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
                 });
 
                 let capital = get_wallet();
@@ -59,7 +60,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
                     qty: qty,
                     platform: bot.platform.clone(),
                     status: String::from("OPEN"),
-                    timestamp: chrono::offset::Utc::now().timestamp(),
+                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
                 });
 
                 update_margin_position(state.id, 1);
@@ -81,7 +82,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
                     qty: qty,
                     platform: bot.platform.clone(),
                     status: String::from("OPEN"),
-                    timestamp: chrono::offset::Utc::now().timestamp(),
+                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
                 });
 
                 update_margin_position(state.id, state.margin_position + 1);
@@ -101,7 +102,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
             qty: bot.parameters.first_buy_in / fprice,
             platform: bot.platform.clone(),
             status: String::from("OPEN"),
-            timestamp: chrono::offset::Utc::now().timestamp(),
+            timestamp: chrono::offset::Utc::now().timestamp() as u64,
         });
 
         create_bot_state(result::BotState {
@@ -111,7 +112,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
             margin_position: 0,
             top_price: fprice,
             platform: bot.platform.clone(),
-            timestamp: chrono::offset::Utc::now().timestamp(),
+            timestamp: chrono::offset::Utc::now().timestamp() as u64,
         });
 
         let capital = get_wallet();
@@ -119,9 +120,9 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
     }
 }
 
-pub fn calculate_percent_change(old_value: f32, new_value: f32) -> f32 {
+pub fn calculate_percent_change(old_value: f64, new_value: f64) -> f64 {
     if old_value == 0.0 {
-        return f32::INFINITY;
+        return f64::INFINITY;
     }
 
     ((new_value - old_value) / old_value) * 100.0
@@ -155,7 +156,7 @@ pub fn get_latest_trade(platform: &str, pair: &str) -> Result<result::Trade> {
 }
 
 pub fn create_trade(trade: result::Trade) {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+    let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(
         "INSERT INTO trades (
             pair,
@@ -179,8 +180,8 @@ pub fn create_trade(trade: result::Trade) {
     .unwrap();
 }
 
-pub fn get_avg_price(platform: &str, pair: &str, cycle: u64) -> f32 {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+pub fn get_avg_price(platform: &str, pair: &str, cycle: u64) -> f64 {
+    let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn
         .prepare("SELECT * FROM trades WHERE platform=:platform AND pair=:pair AND cycle=:cycle")
         .unwrap();
@@ -199,8 +200,8 @@ pub fn get_avg_price(platform: &str, pair: &str, cycle: u64) -> f32 {
         .unwrap()
         .collect();
 
-    let mut total_amount: f32 = 0.0;
-    let mut total_qty: f32 = 0.0;
+    let mut total_amount: f64 = 0.0;
+    let mut total_qty: f64 = 0.0;
     for trade in trades {
         let item = trade.unwrap();
         total_amount += item.price * item.qty;
@@ -211,7 +212,7 @@ pub fn get_avg_price(platform: &str, pair: &str, cycle: u64) -> f32 {
 }
 
 pub fn get_latest_state(platform: &str, pair: &str) -> Result<result::BotState> {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+    let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn
         .prepare("SELECT * FROM bot_states WHERE platform=:platform AND pair=:pair ORDER BY timestamp DESC LIMIT 1")
         .unwrap();
@@ -238,7 +239,7 @@ pub fn get_latest_state(platform: &str, pair: &str) -> Result<result::BotState> 
 }
 
 pub fn create_bot_state(state: result::BotState) {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+    let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(
         "INSERT INTO bot_states (
             pair,
@@ -260,8 +261,8 @@ pub fn create_bot_state(state: result::BotState) {
     .unwrap();
 }
 
-pub fn update_top_price(id: u64, top_price: f32) {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+pub fn update_top_price(id: u64, top_price: f64) {
+    let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(
         "UPDATE bot_states SET
                 top_price=?1
@@ -272,7 +273,7 @@ pub fn update_top_price(id: u64, top_price: f32) {
 }
 
 pub fn update_margin_position(id: u64, position: u64) {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+    let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(
         "UPDATE bot_states SET
                 margin_position=?1
@@ -282,26 +283,26 @@ pub fn update_margin_position(id: u64, position: u64) {
     .unwrap();
 }
 
-pub fn get_wallet() -> f32 {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+pub fn get_wallet() -> f64 {
+    let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn
         .prepare("SELECT amount FROM tokens WHERE token=:token LIMIT 1")
         .unwrap();
-    let mut tokens: Vec<Result<f32>> = stmt
-        .query_map(["USDT"], |row| Ok(row.get(0)?))
+    let mut tokens: Vec<Result<f64>> = stmt
+        .query_map(["USDC"], |row| Ok(row.get(0)?))
         .unwrap()
         .collect();
 
     tokens.remove(0).unwrap()
 }
 
-pub fn update_wallet(amount: f32) {
-    let conn = Connection::open(data::DB_PATH).unwrap();
+pub fn update_wallet(amount: f64) {
+    let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(
         "UPDATE tokens SET
                 amount=?1
             WHERE token=?2",
-        params![amount, "USDT"],
+        params![amount, "USDC"],
     )
     .unwrap();
 }
