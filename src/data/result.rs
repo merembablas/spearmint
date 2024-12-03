@@ -40,6 +40,7 @@ pub struct BotState {
     pub cycle: u64,
     pub margin_position: u64,
     pub top_price: f64,
+    pub bottom_price: f64,
     pub platform: String,
     pub timestamp: u64,
 }

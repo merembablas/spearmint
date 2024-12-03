@@ -13,6 +13,9 @@ use std::path::PathBuf;
 struct Args {
     #[clap(subcommand)]
     command: Option<Commands>,
+
+    #[clap(short, long, value_name = "FILE", default_value = "spearmint.db")]
+    database: String,
 }
 
 #[derive(Subcommand)]
@@ -61,7 +64,13 @@ enum Commands {
         path: String,
     },
 
-    Run {},
+    Run {
+        #[clap(short, long)]
+        name: String,
+
+        #[clap(short, long, default_value = "30")]
+        duration: u64,
+    },
 }
 
 fn main() {
@@ -86,6 +95,7 @@ fn main() {
         }
 
         Some(Commands::Status { name }) => {
+            println!("args {}", args.database);
             println!("Status ID: {}", name);
         }
 
@@ -131,10 +141,10 @@ fn main() {
             data::setup(path).expect("Failed to create database");
         }
 
-        Some(Commands::Run {}) => {
-            let bots: Vec<data::result::Bot> = data::bot::active().unwrap();
-            data::streams::run("binance", bots);
-        }
+        Some(Commands::Run { name, duration }) => match data::bot::get(name) {
+            Ok(bot) => data::streams::run("binance", &bot, *duration),
+            Err(e) => println!("error: {}", e),
+        },
 
         Some(Commands::Account { platform }) => {
             let api_credential = data::bind::get(platform);

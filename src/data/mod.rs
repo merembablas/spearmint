@@ -74,7 +74,7 @@ pub fn setup(path: &str) -> Result<()> {
     conn.execute(
         "INSERT INTO tokens (token, amount, platform) VALUES (?1, ?2, ?3)
     ",
-        ["USDC", "1000", "binance"],
+        ["USDC", "0", "binance"],
     )?;
 
     conn.execute(
@@ -84,6 +84,7 @@ pub fn setup(path: &str) -> Result<()> {
             cycle                           INTEGER,
             margin_position                 INTEGER,
             top_price                       REAL,
+            bottom_price                    REAL,
             platform                        TEXT,
             timestamp                       INTEGER NOT NULL
         );

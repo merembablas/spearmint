@@ -111,6 +111,7 @@ pub fn execute_strategy(bot: &result::Bot, price: &str) {
             cycle: trade.cycle + 1,
             margin_position: 0,
             top_price: fprice,
+            bottom_price: fprice,
             platform: bot.platform.clone(),
             timestamp: chrono::offset::Utc::now().timestamp() as u64,
         });
@@ -224,8 +225,9 @@ pub fn get_latest_state(platform: &str, pair: &str) -> Result<result::BotState> 
                 cycle: row.get(2)?,
                 margin_position: row.get(3)?,
                 top_price: row.get(4)?,
-                platform: row.get(5)?,
-                timestamp: row.get(6)?,
+                bottom_price: row.get(5)?,
+                platform: row.get(6)?,
+                timestamp: row.get(7)?,
             })
         })
         .unwrap()
@@ -246,14 +248,16 @@ pub fn create_bot_state(state: result::BotState) {
             cycle,
             margin_position,
             top_price,
+            bottom_price,
             platform,
             timestamp
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             state.pair,
             state.cycle,
             state.margin_position,
             state.top_price,
+            state.bottom_price,
             state.platform,
             state.timestamp
         ],
@@ -268,6 +272,17 @@ pub fn update_top_price(id: u64, top_price: f64) {
                 top_price=?1
             WHERE id=?2",
         params![top_price, id],
+    )
+    .unwrap();
+}
+
+pub fn update_bottom_price(id: u64, bottom_price: f64) {
+    let conn = Connection::open(super::DB_PATH).unwrap();
+    conn.execute(
+        "UPDATE bot_states SET
+                bottom_price=?1
+            WHERE id=?2",
+        params![bottom_price, id],
     )
     .unwrap();
 }

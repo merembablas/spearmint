@@ -1,31 +1,20 @@
 use crate::data::action;
 use crate::data::result::Bot;
-use crate::strategy::martingle;
+use crate::strategy::{helldiver, martingle};
 use binance::websockets::*;
 use comfy_table::Table;
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
-pub fn run(exchange: &str, bots: Vec<Bot>) {
-    let mut endpoints: Vec<String> = Vec::new();
-
-    for bot in bots.iter() {
-        endpoints.push(format!("{}@ticker", bot.pair.to_lowercase()));
-    }
-
+pub fn run(exchange: &str, bot: &Bot, duration: u64) {
     let keep_running = AtomicBool::new(true);
     let mut last_block_time = Instant::now();
-    let block_interval = Duration::from_secs(30);
-    let bot_dup = bots.clone();
+    let block_interval = Duration::from_secs(duration);
 
     let mut web_socket: WebSockets<'_> = WebSockets::new(|event: WebsocketEvent| {
         if let WebsocketEvent::DayTicker(ticker_event) = event {
             print!("\x1B[2J\x1B[1;1H");
 
-            let bot = bots
-                .iter()
-                .find(|&x| x.pair == ticker_event.symbol)
-                .unwrap();
             let state = match action::get_latest_state(&bot.platform, &bot.pair) {
                 Ok(state) => state,
                 Err(_error) => Default::default(),
@@ -46,6 +35,7 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
                 "AVG",
                 "P.Change",
                 "T.Price",
+                "B.Price",
                 "Wallet",
                 "Cycle",
                 "M.Position",
@@ -57,6 +47,7 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
                 &format!("{}", avg_price),
                 &format!("{}%", avg_percent_change),
                 &format!("{}", state.top_price),
+                &format!("{}", state.bottom_price),
                 &format!("{}", wallet),
                 &format!("{}", state.cycle),
                 &format!("{}", state.margin_position),
@@ -67,7 +58,11 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
             if last_block_time.elapsed() >= block_interval {
                 println!("Execute strategy...");
 
-                martingle::execute_strategy(bot, &ticker_event.current_close);
+                if bot.strategy == "helldiver" {
+                    helldiver::execute_strategy(bot, &ticker_event.current_close);
+                } else {
+                    martingle::execute_strategy(bot, &ticker_event.current_close);
+                }
 
                 last_block_time = Instant::now(); // Reset the timer
             }
@@ -76,12 +71,14 @@ pub fn run(exchange: &str, bots: Vec<Bot>) {
         Ok(())
     });
 
-    web_socket.connect_multiple_streams(&endpoints).unwrap();
+    web_socket
+        .connect(&format!("{}@ticker", bot.pair.to_lowercase()))
+        .unwrap();
 
     if let Err(e) = web_socket.event_loop(&keep_running) {
         println!("Error: {:?}", e);
 
-        run(exchange, bot_dup);
+        run(exchange, bot, duration);
     }
 
     web_socket.disconnect().unwrap();
