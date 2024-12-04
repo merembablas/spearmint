@@ -1,6 +1,7 @@
 mod cli;
 mod connector;
 mod data;
+mod notification;
 mod run;
 mod strategy;
 
@@ -53,6 +54,17 @@ enum Commands {
     },
 
     List {},
+
+    Notification {
+        #[clap(short, long)]
+        token: String,
+
+        #[clap(short, long)]
+        chat_id: u64,
+
+        #[clap(short, long, default_value = "30")]
+        duration: u64,
+    },
 
     Bot {
         #[clap(short, long)]
@@ -157,6 +169,14 @@ fn main() {
         }
 
         Some(Commands::Test {}) => {}
+
+        Some(Commands::Notification {
+            token,
+            chat_id,
+            duration,
+        }) => {
+            notification::telegram::run(token.clone(), *chat_id, *duration);
+        }
 
         None => {}
     }

@@ -156,6 +156,57 @@ pub fn get_latest_trade(platform: &str, pair: &str) -> Result<result::Trade> {
     }
 }
 
+pub fn get_latest_pnl_trade(platform: &str, pair: &str) -> Result<result::PnL> {
+    let conn = Connection::open(data::DB_PATH).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT cycle FROM trades WHERE platform=:platform AND pair=:pair AND status=:status ORDER BY timestamp DESC LIMIT 1")
+        .unwrap();
+    let mut trades: Vec<Result<u64>> = stmt
+        .query_map([platform, pair, "CLOSE"], |row| Ok(row.get(0)?))
+        .unwrap()
+        .collect();
+
+    if trades.len() > 0 {
+        let cycle = trades.remove(0).unwrap();
+        let mut stmt = conn
+        .prepare("SELECT * FROM trades WHERE platform=:platform AND pair=:pair AND cycle=:cycle ORDER BY timestamp DESC")
+        .unwrap();
+        let trades: Vec<Result<result::Trade>> = stmt
+            .query_map([platform, pair, &cycle.to_string()], |row| {
+                Ok(result::Trade {
+                    pair: row.get(1)?,
+                    cycle: row.get(2)?,
+                    price: row.get(3)?,
+                    qty: row.get(4)?,
+                    platform: row.get(5)?,
+                    status: row.get(6)?,
+                    timestamp: row.get(7)?,
+                })
+            })
+            .unwrap()
+            .collect();
+
+        let mut pnl: f64 = 0.0;
+        for trade in trades {
+            let tr = trade.unwrap();
+            if tr.status == "CLOSE" {
+                pnl = pnl + (tr.price * tr.qty);
+            } else if tr.status == "OPEN" {
+                pnl = pnl - (tr.price * tr.qty);
+            }
+        }
+
+        Ok(result::PnL {
+            pair: String::from(pair),
+            platform: String::from(platform),
+            cycle: cycle,
+            pnl: pnl,
+        })
+    } else {
+        Ok(Default::default())
+    }
+}
+
 pub fn create_trade(trade: result::Trade) {
     let conn = Connection::open(super::DB_PATH).unwrap();
     conn.execute(

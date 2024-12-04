@@ -134,6 +134,7 @@ pub fn all() -> Result<Vec<result::Bot>> {
     Ok(result)
 }
 
+#[allow(dead_code)]
 pub fn active() -> Result<Vec<result::Bot>> {
     let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn.prepare("SELECT * FROM bots WHERE status='ACTIVE'")?;

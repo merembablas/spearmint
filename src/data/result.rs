@@ -78,3 +78,11 @@ pub struct Order {
     pub orig_qty: String,
     pub executed_qty: String,
 }
+
+#[derive(Debug, Default)]
+pub struct PnL {
+    pub pair: String,
+    pub platform: String,
+    pub cycle: u64,
+    pub pnl: f64,
+}
