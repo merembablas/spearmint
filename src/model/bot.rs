@@ -19,15 +19,23 @@ pub fn save(config: args::Config) -> args::Config {
         conn.execute(
             "UPDATE bots SET
                 title=?1,
-                strategy=?2,
-                cycle=?3,
-                first_buy_in=?4,
-                take_profit_ratio=?5,
-                earning_callback=?6,
-                margin=?7
-            WHERE id=?8",
+                pair=?2,
+                base=?3,
+                quote=?4,
+                platform=?5,
+                strategy=?6,
+                cycle=?7,
+                first_buy_in=?8,
+                take_profit_ratio=?9,
+                earning_callback=?10,
+                margin=?11
+            WHERE id=?12",
             params![
                 config.title,
+                config.general.pair,
+                config.general.base,
+                config.general.quote,
+                config.general.platform,
                 config.general.strategy,
                 config.parameters.cycle,
                 config.parameters.first_buy_in,
@@ -43,6 +51,8 @@ pub fn save(config: args::Config) -> args::Config {
             "INSERT INTO bots (
                 title,
                 pair,
+                base,
+                quote,
                 platform,
                 strategy,
                 cycle,
@@ -51,10 +61,12 @@ pub fn save(config: args::Config) -> args::Config {
                 earning_callback,
                 margin,
                 status
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'PAUSED')",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'PAUSED')",
             params![
                 config.title,
                 config.general.pair,
+                config.general.base,
+                config.general.quote,
                 config.general.platform,
                 config.general.strategy,
                 config.parameters.cycle,
@@ -77,23 +89,25 @@ pub fn get(name: &str) -> Result<result::Bot> {
         .unwrap();
     let mut bots: Vec<Result<result::Bot>> = stmt
         .query_map([name], |row| {
-            let margin_configuration: String = row.get(9)?;
+            let margin_configuration: String = row.get(11)?;
 
             Ok(result::Bot {
                 title: row.get(1)?,
                 pair: row.get(2)?,
-                platform: row.get(3)?,
-                strategy: row.get(4)?,
+                base: row.get(3)?,
+                quote: row.get(4)?,
+                platform: row.get(5)?,
+                strategy: row.get(6)?,
                 parameters: result::Parameters {
-                    cycle: row.get(5)?,
-                    first_buy_in: row.get(6)?,
-                    take_profit_ratio: row.get(7)?,
-                    earning_callback: row.get(8)?,
+                    cycle: row.get(7)?,
+                    first_buy_in: row.get(8)?,
+                    take_profit_ratio: row.get(9)?,
+                    earning_callback: row.get(10)?,
                 },
                 margin: result::Margin {
                     margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),
                 },
-                status: row.get(10)?,
+                status: row.get(12)?,
             })
         })
         .unwrap()
@@ -106,23 +120,25 @@ pub fn all() -> Result<Vec<result::Bot>> {
     let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn.prepare("SELECT * FROM bots")?;
     let bots = stmt.query_map([], |row| {
-        let margin_configuration: String = row.get(9)?;
+        let margin_configuration: String = row.get(11)?;
 
         Ok(result::Bot {
             title: row.get(1)?,
             pair: row.get(2)?,
-            platform: row.get(3)?,
-            strategy: row.get(4)?,
+            base: row.get(3)?,
+            quote: row.get(4)?,
+            platform: row.get(5)?,
+            strategy: row.get(6)?,
             parameters: result::Parameters {
-                cycle: row.get(5)?,
-                first_buy_in: row.get(6)?,
-                take_profit_ratio: row.get(7)?,
-                earning_callback: row.get(8)?,
+                cycle: row.get(7)?,
+                first_buy_in: row.get(8)?,
+                take_profit_ratio: row.get(9)?,
+                earning_callback: row.get(10)?,
             },
             margin: result::Margin {
                 margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),
             },
-            status: row.get(10)?,
+            status: row.get(12)?,
         })
     })?;
 
@@ -139,23 +155,25 @@ pub fn active() -> Result<Vec<result::Bot>> {
     let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn.prepare("SELECT * FROM bots WHERE status='ACTIVE'")?;
     let bots = stmt.query_map([], |row| {
-        let margin_configuration: String = row.get(9)?;
+        let margin_configuration: String = row.get(11)?;
 
         Ok(result::Bot {
             title: row.get(1)?,
             pair: row.get(2)?,
-            platform: row.get(3)?,
-            strategy: row.get(4)?,
+            base: row.get(3)?,
+            quote: row.get(4)?,
+            platform: row.get(5)?,
+            strategy: row.get(6)?,
             parameters: result::Parameters {
-                cycle: row.get(5)?,
-                first_buy_in: row.get(6)?,
-                take_profit_ratio: row.get(7)?,
-                earning_callback: row.get(8)?,
+                cycle: row.get(7)?,
+                first_buy_in: row.get(8)?,
+                take_profit_ratio: row.get(9)?,
+                earning_callback: row.get(10)?,
             },
             margin: result::Margin {
                 margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),
             },
-            status: row.get(10)?,
+            status: row.get(12)?,
         })
     })?;
 

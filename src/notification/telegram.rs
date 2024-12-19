@@ -1,6 +1,6 @@
-use crate::data::action;
-use crate::data::bot;
-use crate::data::result::Bot;
+use crate::model::bot;
+use crate::model::result::Bot;
+use crate::model::storage;
 use reqwest::blocking::Client;
 use reqwest::header;
 use serde::Serialize;
@@ -36,7 +36,7 @@ fn perform_task(trackers: &mut HashMap<String, i32>, bots: &Vec<Bot>, token: &st
 
     let mut is_send = false;
     for bot in bots {
-        let pnl = action::get_latest_pnl_trade(&bot.platform, &bot.pair).unwrap();
+        let pnl = storage::get_latest_pnl_trade(&bot.platform, &bot.pair).unwrap();
 
         let cycle = match trackers.get(&pnl.pair) {
             Some(&number) => number,

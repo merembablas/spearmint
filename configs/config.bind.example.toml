@@ -1,0 +1,4 @@
+kind = "bind"
+api_key = ""
+secret_key = ""
+platform = "binance"

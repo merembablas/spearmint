@@ -16,6 +16,8 @@ pub struct Config {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct General {
     pub pair: String,
+    pub base: String,
+    pub quote: String,
     pub platform: String,
     pub strategy: String,
 }

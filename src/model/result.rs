@@ -2,6 +2,8 @@
 pub struct Bot {
     pub title: String,
     pub pair: String,
+    pub base: String,
+    pub quote: String,
     pub platform: String,
     pub strategy: String,
     pub parameters: Parameters,
@@ -82,7 +84,6 @@ pub struct Order {
 #[derive(Debug, Default)]
 pub struct PnL {
     pub pair: String,
-    pub platform: String,
     pub cycle: u64,
     pub pnl: f64,
 }

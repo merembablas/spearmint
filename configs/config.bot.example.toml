@@ -1,0 +1,18 @@
+kind = "bot"
+title = "ENAUSDT"
+
+[general]
+pair = "ENAUSDT"
+base = "ENA"
+quote = "USDT"
+platform = "binance"
+strategy = "helldiver"
+
+[parameters]
+cycle = "repeat"
+first_buy_in = 5
+take_profit_ratio = 2.0
+earning_callback = -0.3
+
+[margin]
+margin_configuration = [[-1.5, 0.5, 4.0], [-6, 1.0, 15.0]]

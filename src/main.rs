@@ -1,10 +1,13 @@
+mod bot;
 mod cli;
 mod connector;
-mod data;
+mod model;
 mod notification;
 mod run;
 mod strategy;
 
+use crate::model::Exchange;
+use bot::BotBuilder;
 use clap::{Parser, Subcommand};
 use connector::binance;
 use std::path::PathBuf;
@@ -92,15 +95,15 @@ fn main() {
         Some(Commands::Apply { file }) => {
             if let Some(config_path) = file.as_deref() {
                 let content = std::fs::read_to_string(config_path).unwrap();
-                let kind: data::args::Kind = toml::from_str(&content).unwrap();
+                let kind: model::args::Kind = toml::from_str(&content).unwrap();
 
                 if kind.kind == "bot" {
-                    let bot: data::args::Config = toml::from_str(&content).unwrap();
-                    let config = data::bot::save(bot);
+                    let bot: model::args::Config = toml::from_str(&content).unwrap();
+                    let config = model::bot::save(bot);
                     cli::display_bot(config);
                 } else if kind.kind == "bind" {
-                    let binding: data::args::ApiCredential = toml::from_str(&content).unwrap();
-                    let api = data::bind::save(binding);
+                    let binding: model::args::ApiCredential = toml::from_str(&content).unwrap();
+                    let api = model::bind::save(binding);
                     cli::display_bind(api);
                 }
             }
@@ -112,37 +115,39 @@ fn main() {
         }
 
         Some(Commands::Start { name }) => {
-            data::start(name);
+            model::start(name);
         }
 
         Some(Commands::Stop { name }) => {
-            data::stop(name);
+            model::stop(name);
         }
 
         Some(Commands::Delete { name }) => {
-            data::delete(name);
+            model::delete(name);
         }
 
-        Some(Commands::List {}) => match data::bot::all() {
+        Some(Commands::List {}) => match model::bot::all() {
             Ok(bots) => cli::display_bots(bots),
             Err(e) => println!("error: {}", e),
         },
 
-        Some(Commands::Bot { name }) => match data::bot::get(name) {
-            Ok(bot) => cli::display_bot(data::args::Config {
+        Some(Commands::Bot { name }) => match model::bot::get(name) {
+            Ok(bot) => cli::display_bot(model::args::Config {
                 title: bot.title,
-                general: data::args::General {
+                general: model::args::General {
                     pair: bot.pair,
+                    base: bot.base,
+                    quote: bot.quote,
                     platform: bot.platform,
                     strategy: bot.strategy,
                 },
-                parameters: data::args::Parameters {
+                parameters: model::args::Parameters {
                     cycle: bot.parameters.cycle,
                     first_buy_in: bot.parameters.first_buy_in,
                     take_profit_ratio: bot.parameters.take_profit_ratio,
                     earning_callback: bot.parameters.earning_callback,
                 },
-                margin: data::args::Margin {
+                margin: model::args::Margin {
                     margin_configuration: bot.margin.margin_configuration,
                 },
             }),
@@ -150,25 +155,48 @@ fn main() {
         },
 
         Some(Commands::Setup { path }) => {
-            data::setup(path).expect("Failed to create database");
+            model::setup(path).expect("Failed to create database");
         }
 
-        Some(Commands::Run { name, duration }) => match data::bot::get(name) {
-            Ok(bot) => data::streams::run("binance", &bot, *duration),
+        Some(Commands::Run { name, duration }) => match model::bot::get(name) {
+            Ok(config) => {
+                let strategy = strategy::helldiver::HellDiverStrategy {
+                    first_buy_in: config.parameters.first_buy_in,
+                    first_entry: vec![-1.0, 0.3],
+                    take_profit_ratio: config.parameters.take_profit_ratio,
+                    earning_callback: config.parameters.earning_callback,
+                    margin_configuration: config.margin.margin_configuration,
+                };
+                let credential = model::bind::get(&config.platform);
+                let account =
+                    binance::Connector::from_credential(credential.api, credential.secret);
+                let bot =
+                    BotBuilder::<binance::Connector, strategy::helldiver::HellDiverStrategy>::new()
+                        .with_info(bot::BotInfo {
+                            platform: config.platform,
+                            pair: config.pair,
+                            base: config.base,
+                            quote: config.quote,
+                        })
+                        .with_strategy(strategy)
+                        .with_connector(account)
+                        .build();
+
+                run::run(bot, *duration);
+            }
             Err(e) => println!("error: {}", e),
         },
 
         Some(Commands::Account { platform }) => {
-            let api_credential = data::bind::get(platform);
-            let account = binance::Account {
-                api_key: api_credential.api,
-                api_secret: api_credential.secret,
-            };
+            let credential = model::bind::get(platform);
+            let account = binance::Connector::from_credential(credential.api, credential.secret);
 
             cli::display_balances(account.get_balances());
         }
 
-        Some(Commands::Test {}) => {}
+        Some(Commands::Test {}) => {
+            println!("test");
+        }
 
         Some(Commands::Notification {
             token,

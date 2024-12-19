@@ -1,146 +1,64 @@
-use crate::connector::binance::Account;
-use crate::data::{action, bind, result};
+use super::calculate_percent_change;
+use crate::model::{BotCommand, Session, Strategy};
 
-pub fn execute_strategy(bot: &result::Bot, price: &str) {
-    let api_credential = bind::get(&bot.platform);
-    let account = Account {
-        api_key: api_credential.api,
-        api_secret: api_credential.secret,
-    };
+#[derive(Debug)]
+pub struct HellDiverStrategy {
+    pub first_buy_in: f64,
+    pub first_entry: Vec<f64>,
+    pub take_profit_ratio: f64,
+    pub earning_callback: f64,
+    pub margin_configuration: Vec<Vec<f64>>,
+}
 
-    let trade = match action::get_latest_trade(&bot.platform, &bot.pair) {
-        Ok(trade) => trade,
-        Err(_error) => Default::default(),
-    };
+impl Strategy for HellDiverStrategy {
+    fn run(&self, price: f64, session: Session) -> BotCommand {
+        let avg_percent_change = calculate_percent_change(session.avg_price, price);
+        let top_percent_change = calculate_percent_change(session.top_price, price);
+        let bottom_percent_change = calculate_percent_change(session.bottom_price, price);
 
-    let fprice = price.parse::<f64>().unwrap();
+        if session.status == "OPEN" {
+            let margin_len = self.margin_configuration.len() as u64;
 
-    if trade.status == "OPEN" {
-        let state = match action::get_latest_state(&bot.platform, &bot.pair) {
-            Ok(state) => state,
-            Err(_error) => Default::default(),
-        };
-
-        if state.id == 0 {
-            return;
-        }
-
-        let avg_price = action::get_avg_price(&bot.platform, &bot.pair, state.cycle);
-        let avg_percent_change = action::calculate_percent_change(avg_price, fprice);
-        let top_percent_change = action::calculate_percent_change(state.top_price, fprice);
-        let bottom_percent_change = action::calculate_percent_change(state.bottom_price, fprice);
-
-        if avg_percent_change > bot.parameters.take_profit_ratio {
-            if top_percent_change < bot.parameters.earning_callback {
-                let asset = account.get_balance(String::from(&bot.pair.replace("USDC", "")));
-                let free = account.adjust_quantity(String::from(&bot.pair), asset.free);
-                let transaction = account.market_sell(bot.pair.clone(), free);
-
-                action::create_trade(result::Trade {
-                    pair: bot.pair.clone(),
-                    cycle: state.cycle,
-                    price: transaction.price,
-                    qty: transaction.qty,
-                    platform: bot.platform.clone(),
-                    status: String::from("CLOSE"),
-                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
-                });
-
-                let capital = account.get_balance(String::from("USDC"));
-                action::update_wallet(capital.free);
+            if self.is_sell_signal(top_percent_change, avg_percent_change) {
+                return BotCommand::Sell();
             }
 
-            if fprice > state.top_price {
-                action::update_top_price(state.id, fprice);
+            if session.margin_position < margin_len
+                && self.is_avg_buy_signal(
+                    avg_percent_change,
+                    bottom_percent_change,
+                    session.margin_position as usize,
+                )
+            {
+                return BotCommand::Buy(
+                    self.margin_configuration[session.margin_position as usize][2]
+                        * self.first_buy_in,
+                );
+            }
+        } else if session.status == "WAIT" {
+            if self.is_entry_signal(top_percent_change, bottom_percent_change) {
+                return BotCommand::Entry(self.first_buy_in);
             }
         }
 
-        let margin_len = u64::try_from(bot.margin.margin_configuration.len()).unwrap();
+        BotCommand::Pause()
+    }
 
-        if state.margin_position == 0 {
-            if avg_percent_change < bot.margin.margin_configuration[0][0] {
-                if bottom_percent_change > bot.margin.margin_configuration[0][1] {
-                    let transaction = account.market_buy_using_quote_quantity(
-                        bot.pair.clone(),
-                        bot.parameters.first_buy_in * bot.margin.margin_configuration[0][2],
-                    );
+    fn is_entry_signal(&self, top_percent_change: f64, bottom_percent_change: f64) -> bool {
+        top_percent_change < self.first_entry[0] && bottom_percent_change > self.first_entry[1]
+    }
 
-                    action::create_trade(result::Trade {
-                        pair: bot.pair.clone(),
-                        cycle: state.cycle,
-                        price: transaction.price,
-                        qty: transaction.qty,
-                        platform: bot.platform.clone(),
-                        status: String::from("OPEN"),
-                        timestamp: chrono::offset::Utc::now().timestamp() as u64,
-                    });
+    fn is_sell_signal(&self, top_percent_change: f64, avg_percent_change: f64) -> bool {
+        avg_percent_change > self.take_profit_ratio && top_percent_change < self.earning_callback
+    }
 
-                    action::update_margin_position(state.id, 1);
-
-                    let capital = account.get_balance(String::from("USDC"));
-                    action::update_wallet(capital.free);
-                }
-
-                if fprice < state.bottom_price {
-                    action::update_bottom_price(state.id, fprice);
-                }
-            }
-        } else if state.margin_position < margin_len {
-            let index = usize::try_from(state.margin_position).unwrap();
-            if avg_percent_change < bot.margin.margin_configuration[index][0] {
-                if bottom_percent_change > bot.margin.margin_configuration[index][1] {
-                    let transaction = account.market_buy_using_quote_quantity(
-                        bot.pair.clone(),
-                        bot.parameters.first_buy_in * bot.margin.margin_configuration[index][2],
-                    );
-
-                    action::create_trade(result::Trade {
-                        pair: bot.pair.clone(),
-                        cycle: state.cycle,
-                        price: transaction.price,
-                        qty: transaction.qty,
-                        platform: bot.platform.clone(),
-                        status: String::from("OPEN"),
-                        timestamp: chrono::offset::Utc::now().timestamp() as u64,
-                    });
-
-                    action::update_margin_position(state.id, state.margin_position + 1);
-
-                    let capital = account.get_balance(String::from("USDC"));
-                    action::update_wallet(capital.free);
-                }
-
-                if fprice < state.bottom_price {
-                    action::update_bottom_price(state.id, fprice);
-                }
-            }
-        }
-    } else {
-        let transaction =
-            account.market_buy_using_quote_quantity(bot.pair.clone(), bot.parameters.first_buy_in);
-
-        action::create_trade(result::Trade {
-            pair: bot.pair.clone(),
-            cycle: trade.cycle + 1,
-            price: transaction.price,
-            qty: transaction.qty,
-            platform: bot.platform.clone(),
-            status: String::from("OPEN"),
-            timestamp: chrono::offset::Utc::now().timestamp() as u64,
-        });
-
-        action::create_bot_state(result::BotState {
-            id: 0,
-            pair: bot.pair.clone(),
-            cycle: trade.cycle + 1,
-            margin_position: 0,
-            top_price: fprice,
-            bottom_price: fprice,
-            platform: bot.platform.clone(),
-            timestamp: chrono::offset::Utc::now().timestamp() as u64,
-        });
-
-        let capital = account.get_balance(String::from("USDC"));
-        action::update_wallet(capital.free);
+    fn is_avg_buy_signal(
+        &self,
+        avg_percent_change: f64,
+        bottom_percent_change: f64,
+        margin_position: usize,
+    ) -> bool {
+        avg_percent_change < self.margin_configuration[margin_position][0]
+            && bottom_percent_change > self.margin_configuration[margin_position][1]
     }
 }

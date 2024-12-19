@@ -1,6 +1,0 @@
-kind = "bind"
-
-[general]
-api_key = "jjjjjj"
-secret_key = "xxxxx"
-platform = "binance"

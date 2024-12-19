@@ -1,13 +1,15 @@
 use comfy_table::Table;
 
-use crate::data;
+use crate::model;
 
-pub fn display_bot(package_info: data::args::Config) {
+pub fn display_bot(package_info: model::args::Config) {
     let mut table = Table::new();
     table
         .set_header(vec!["Name", "Value"])
         .add_row(vec!["Title", &package_info.title])
         .add_row(vec!["Pair", &package_info.general.pair])
+        .add_row(vec!["Base", &package_info.general.base])
+        .add_row(vec!["Quote", &package_info.general.quote])
         .add_row(vec!["Platform", &package_info.general.platform])
         .add_row(vec!["Strategy", &package_info.general.strategy])
         .add_row(vec!["Cycle", &package_info.parameters.cycle])
@@ -31,13 +33,13 @@ pub fn display_bot(package_info: data::args::Config) {
     let mut margin_configuration = package_info.margin.margin_configuration;
     margin_configuration.reverse();
     while let Some(set) = margin_configuration.pop() {
-        margin_table.add_row(vec![&set[0], &set[1]]);
+        margin_table.add_row(&set);
     }
 
     println!("{}", margin_table);
 }
 
-pub fn display_bots(bots: Vec<crate::data::result::Bot>) {
+pub fn display_bots(bots: Vec<crate::model::result::Bot>) {
     let mut table = Table::new();
     table.set_header(vec![
         "Title", "Pair", "Platform", "Strategy", "Cycle", "Status",
@@ -57,7 +59,7 @@ pub fn display_bots(bots: Vec<crate::data::result::Bot>) {
     println!("{}", table);
 }
 
-pub fn display_bind(api: crate::data::result::ApiCredential) {
+pub fn display_bind(api: crate::model::result::ApiCredential) {
     let mut table = Table::new();
     table
         .set_header(vec!["Platform", "Api Key", "Secret Key"])
@@ -66,7 +68,7 @@ pub fn display_bind(api: crate::data::result::ApiCredential) {
     println!("{}", table);
 }
 
-pub fn display_balances(balances: Vec<crate::data::result::Balance>) {
+pub fn display_balances(balances: Vec<crate::model::result::Balance>) {
     let mut table = Table::new();
     table.set_header(vec!["Asset", "Free"]);
 
