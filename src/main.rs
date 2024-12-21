@@ -56,6 +56,11 @@ enum Commands {
         name: String,
     },
 
+    Tick {
+        #[clap(short, long, default_value = "spearmint_data.db")]
+        path: String,
+    },
+
     List {},
 
     Notification {
@@ -75,6 +80,9 @@ enum Commands {
     },
 
     Setup {
+        #[clap(short, long, default_value = "main")]
+        name: String,
+
         #[clap(short, long, value_name = "FILE", default_value = "spearmint.db")]
         path: String,
     },
@@ -154,15 +162,19 @@ fn main() {
             Err(e) => println!("error: {}", e),
         },
 
-        Some(Commands::Setup { path }) => {
-            model::setup(path).expect("Failed to create database");
+        Some(Commands::Setup { path, name }) => {
+            if name == "main" {
+                model::setup(path).expect("Failed to create database");
+            } else if name == "data" {
+                model::setup_price(path).expect("Failed to create database");
+            }
         }
 
         Some(Commands::Run { name, duration }) => match model::bot::get(name) {
             Ok(config) => {
                 let strategy = strategy::helldiver::HellDiverStrategy {
                     first_buy_in: config.parameters.first_buy_in,
-                    first_entry: vec![-1.0, 0.3],
+                    first_entry: vec![-2.0, 0.5],
                     take_profit_ratio: config.parameters.take_profit_ratio,
                     earning_callback: config.parameters.earning_callback,
                     margin_configuration: config.margin.margin_configuration,
@@ -204,6 +216,10 @@ fn main() {
             duration,
         }) => {
             notification::telegram::run(token.clone(), *chat_id, *duration);
+        }
+
+        Some(Commands::Tick { path }) => {
+            model::ticker::run(path);
         }
 
         None => {}

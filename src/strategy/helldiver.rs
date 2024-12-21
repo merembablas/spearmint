@@ -29,6 +29,7 @@ impl Strategy for HellDiverStrategy {
                     bottom_percent_change,
                     session.margin_position as usize,
                 )
+                && self.is_mfi_approved(session.mfi)
             {
                 return BotCommand::Buy(
                     self.margin_configuration[session.margin_position as usize][2]
@@ -36,7 +37,9 @@ impl Strategy for HellDiverStrategy {
                 );
             }
         } else if session.status == "WAIT" {
-            if self.is_entry_signal(top_percent_change, bottom_percent_change) {
+            if self.is_entry_signal(top_percent_change, bottom_percent_change)
+                && self.is_mfi_approved(session.mfi)
+            {
                 return BotCommand::Entry(self.first_buy_in);
             }
         }
@@ -60,5 +63,9 @@ impl Strategy for HellDiverStrategy {
     ) -> bool {
         avg_percent_change < self.margin_configuration[margin_position][0]
             && bottom_percent_change > self.margin_configuration[margin_position][1]
+    }
+
+    fn is_mfi_approved(&self, mfi: f64) -> bool {
+        mfi < 35.0 || mfi == 0.0
     }
 }

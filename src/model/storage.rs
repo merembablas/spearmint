@@ -2,6 +2,7 @@ use super::result;
 use rusqlite::{params, Connection, Result};
 
 pub const DB_PATH: &str = "spearmint.db";
+pub const DB_DATA_PATH: &str = "spearmint_data.db";
 
 pub fn get_latest_trade(platform: &str, pair: &str) -> Result<result::Trade> {
     let conn = Connection::open(DB_PATH).unwrap();
@@ -246,4 +247,48 @@ pub fn update_wallet(quote: &str, amount: f64) {
         params![amount, quote],
     )
     .unwrap();
+}
+
+pub fn create_ticker(path: &str, ticker: result::Ticker) {
+    let conn = Connection::open(path).unwrap();
+    conn.execute(
+        "INSERT INTO tickers (
+        pair,
+        timestamp,
+        open,
+        high,
+        low,
+        close,
+        volume,
+        mfi
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            ticker.pair,
+            chrono::offset::Utc::now().timestamp() as u64,
+            ticker.open,
+            ticker.high,
+            ticker.low,
+            ticker.close,
+            ticker.volume,
+            ticker.mfi
+        ],
+    )
+    .unwrap();
+}
+
+pub fn get_latest_mfi(pair: &str) -> f64 {
+    let conn = Connection::open(DB_DATA_PATH).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT mfi FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT 1")
+        .unwrap();
+    let mut tickers: Vec<Result<f64>> = stmt
+        .query_map([pair], |row| Ok(row.get(0)?))
+        .unwrap()
+        .collect();
+
+    if tickers.len() > 0 {
+        tickers.remove(0).unwrap()
+    } else {
+        0.0
+    }
 }

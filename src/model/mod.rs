@@ -7,6 +7,7 @@ pub mod bind;
 pub mod bot;
 pub mod result;
 pub mod storage;
+pub mod ticker;
 
 pub const DB_PATH: &str = "spearmint.db";
 
@@ -112,6 +113,32 @@ pub fn setup(path: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn setup_price(path: &str) -> Result<()> {
+    let conn = Connection::open(path)?;
+
+    conn.execute(
+        "CREATE TABLE if not exists tickers (
+            id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+            pair                            TEXT NOT NULL,
+            timestamp                       INTEGER NOT NULL,
+            open                            REAL,
+            high                            REAL,
+            low                             REAL,
+            close                           REAL,
+            volume                          REAL,
+            mfi                             REAL
+            
+        );
+
+        CREATE INDEX pair_idx ON tickers (pair);
+        CREATE INDEX timestamp_idx ON tickers (timestamp) DESC;
+    ",
+        [],
+    )?;
+
+    Ok(())
+}
+
 pub fn delete(name: &str) {
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Do you really want to continue?")
@@ -184,6 +211,7 @@ pub trait Strategy {
         bottom_percent_change: f64,
         margin_position: usize,
     ) -> bool;
+    fn is_mfi_approved(&self, mfi: f64) -> bool;
 }
 
 #[derive(Debug)]
@@ -206,5 +234,6 @@ pub struct Session<State: SessionState = Initial> {
     pub top_price: f64,
     pub bottom_price: f64,
     pub margin_position: u64,
+    pub mfi: f64,
     pub phantom: PhantomData<State>,
 }

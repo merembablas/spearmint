@@ -26,6 +26,7 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
         let trade = storage::get_latest_trade(&info.platform, &info.pair).unwrap();
         let state = storage::get_latest_state(&info.platform, &info.pair).unwrap();
         let avg_price = storage::get_avg_price(&info.platform, &info.pair, state.cycle);
+        let mfi = storage::get_latest_mfi(&info.pair);
 
         if state.id == 0 || trade.status == "CLOSE" {
             storage::create_trade(result::Trade {
@@ -66,6 +67,7 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
             bottom_price: state.bottom_price,
             status: trade.status,
             margin_position: state.margin_position,
+            mfi,
             phantom: PhantomData,
         };
 
