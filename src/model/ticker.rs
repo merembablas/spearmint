@@ -1,5 +1,6 @@
 use super::{bot, result, storage};
 use binance::websockets::*;
+use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use ta::indicators::MoneyFlowIndex;
 use ta::DataItem;
@@ -7,7 +8,12 @@ use ta::Next;
 
 pub fn run(path: &str) {
     let keep_running = AtomicBool::new(true);
-    let mut mfi = MoneyFlowIndex::new(14).unwrap();
+    let bots = bot::active().unwrap();
+
+    let mut mfis: HashMap<String, MoneyFlowIndex> = HashMap::new();
+    for val in bots.iter() {
+        mfis.insert(val.pair.clone(), MoneyFlowIndex::new(14).unwrap());
+    }
     let mut web_socket: WebSockets = WebSockets::new(|event: WebsocketEvent| {
         match event {
             WebsocketEvent::Kline(kline_event) => {
@@ -29,7 +35,11 @@ pub fn run(path: &str) {
                         .volume(volume)
                         .build()
                         .unwrap();
-                    let mf_val = mfi.next(&di);
+
+                    let mut mf_val = 0.0;
+                    if let Some(value) = mfis.get_mut(&symbol) {
+                        mf_val = value.next(&di);
+                    }
 
                     storage::create_ticker(
                         path,
@@ -55,8 +65,6 @@ pub fn run(path: &str) {
 
         Ok(())
     });
-
-    let bots = bot::active().unwrap();
 
     let endpoints: Vec<String> = bots
         .iter()

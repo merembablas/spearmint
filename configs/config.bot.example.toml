@@ -1,9 +1,9 @@
 kind = "bot"
-title = "ENAUSDT"
+title = "PENGUUSDT"
 
 [general]
-pair = "ENAUSDT"
-base = "ENA"
+pair = "PENGUUSDT"
+base = "PENGU"
 quote = "USDT"
 platform = "binance"
 strategy = "helldiver"
