@@ -292,3 +292,26 @@ pub fn get_latest_mfi(pair: &str) -> f64 {
         0.0
     }
 }
+
+pub fn get_tickers(pair: &str, limit: u64) -> Vec<Result<result::Ticker>> {
+    let conn = Connection::open(DB_DATA_PATH).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT :limit")
+        .unwrap();
+    let tickers: Vec<Result<result::Ticker>> = stmt
+        .query_map([pair, &limit.to_string()], |row| {
+            Ok(result::Ticker {
+                pair: row.get(1)?,
+                open: row.get(3)?,
+                high: row.get(4)?,
+                low: row.get(5)?,
+                close: row.get(6)?,
+                volume: row.get(7)?,
+                mfi: row.get(8)?,
+            })
+        })
+        .unwrap()
+        .collect();
+
+    tickers
+}

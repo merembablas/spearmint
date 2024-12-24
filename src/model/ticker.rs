@@ -12,8 +12,25 @@ pub fn run(path: &str) {
 
     let mut mfis: HashMap<String, MoneyFlowIndex> = HashMap::new();
     for val in bots.iter() {
-        mfis.insert(val.pair.clone(), MoneyFlowIndex::new(14).unwrap());
+        let tickers = storage::get_tickers(&val.pair, 20);
+        let mut mf = MoneyFlowIndex::new(14).unwrap();
+        for tick in tickers.iter().rev() {
+            let ticker = tick.as_ref().unwrap();
+            let di = DataItem::builder()
+                .high(ticker.high)
+                .low(ticker.low)
+                .close(ticker.close)
+                .open(ticker.open)
+                .volume(ticker.volume)
+                .build()
+                .unwrap();
+
+            mf.next(&di);
+        }
+
+        mfis.insert(val.pair.clone(), mf);
     }
+
     let mut web_socket: WebSockets = WebSockets::new(|event: WebsocketEvent| {
         match event {
             WebsocketEvent::Kline(kline_event) => {
@@ -75,5 +92,6 @@ pub fn run(path: &str) {
 
     if let Err(e) = web_socket.event_loop(&keep_running) {
         println!("Error: {:?}", e);
+        run(path);
     }
 }
