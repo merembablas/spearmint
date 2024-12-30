@@ -28,6 +28,11 @@ pub fn run(bot: Arc<super::bot::Bot<impl Exchange, impl Strategy>>, duration: u6
                 ticker_event.current_close.parse().unwrap(),
             );
             let mfi = storage::get_latest_mfi(&info.pair);
+            let mfi_dir = if mfi[0] > mfi[1] {
+                "UP".to_string()
+            } else {
+                "DOWN".to_string()
+            };
 
             let mut table = Table::new();
             table.set_header(vec![
@@ -38,18 +43,22 @@ pub fn run(bot: Arc<super::bot::Bot<impl Exchange, impl Strategy>>, duration: u6
                 "P.Change",
                 "T.Price",
                 "B.Price",
+                "B.MFI",
+                "MFI Dir",
                 "Wallet",
                 "Cycle",
                 "M.Position",
             ]);
             table.add_row(vec![
-                &format!("{:.4}", mfi),
+                &format!("{:.4}", mfi[0]),
                 &info.pair,
                 &format!("{:.4}", ticker_event.current_close),
                 &format!("{:.4}", avg_price),
                 &format!("{:.2}%", avg_percent_change),
                 &format!("{:.4}", state.top_price),
                 &format!("{:.4}", state.bottom_price),
+                &format!("{:.4}", state.bottom_mfi),
+                &format!("{}", mfi_dir),
                 &format!("{:.4}", wallet),
                 &format!("{}", state.cycle),
                 &format!("{}", state.margin_position),

@@ -25,8 +25,8 @@ pub fn setup(path: &str) -> Result<()> {
             strategy                        TEXT,
             cycle                           TEXT,
             first_buy_in                    REAL,
-            take_profit_ratio               REAL,
-            earning_callback                REAL,
+            entry                           TEXT,
+            take_profit                     TEXT,
             margin                          TEXT,
             status                          TEXT
         )
@@ -100,6 +100,7 @@ pub fn setup(path: &str) -> Result<()> {
             margin_position                 INTEGER,
             top_price                       REAL,
             bottom_price                    REAL,
+            bottom_mfi                      REAL,
             platform                        TEXT,
             timestamp                       INTEGER NOT NULL
         );
@@ -211,7 +212,14 @@ pub trait Strategy {
         bottom_percent_change: f64,
         margin_position: usize,
     ) -> bool;
-    fn is_mfi_approved(&self, mfi: f64) -> bool;
+    fn is_mfi_approved(
+        &self,
+        mfi: f64,
+        mfi_bottom_change: f64,
+        mfi_dir: &str,
+        margin_position: usize,
+    ) -> bool;
+    fn is_entry_mfi_approved(&self, mfi: f64, mfi_bottom_change: f64, mfi_dir: &str) -> bool;
 }
 
 #[derive(Debug)]
@@ -235,5 +243,7 @@ pub struct Session<State: SessionState = Initial> {
     pub bottom_price: f64,
     pub margin_position: u64,
     pub mfi: f64,
+    pub mfi_dir: String,
+    pub bottom_mfi: f64,
     pub phantom: PhantomData<State>,
 }

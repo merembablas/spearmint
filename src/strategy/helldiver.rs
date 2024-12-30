@@ -1,13 +1,12 @@
 use super::calculate_percent_change;
-use crate::model::{BotCommand, Session, Strategy};
+use crate::model::{result, BotCommand, Session, Strategy};
 
 #[derive(Debug)]
 pub struct HellDiverStrategy {
     pub first_buy_in: f64,
-    pub first_entry: Vec<f64>,
-    pub take_profit_ratio: f64,
-    pub earning_callback: f64,
-    pub margin_configuration: Vec<Vec<f64>>,
+    pub entry: result::OpenCriteria,
+    pub take_profit: result::CloseCriteria,
+    pub margin_configuration: Vec<result::OpenCriteria>,
 }
 
 impl Strategy for HellDiverStrategy {
@@ -15,6 +14,7 @@ impl Strategy for HellDiverStrategy {
         let avg_percent_change = calculate_percent_change(session.avg_price, price);
         let top_percent_change = calculate_percent_change(session.top_price, price);
         let bottom_percent_change = calculate_percent_change(session.bottom_price, price);
+        let mfi_bottom_change = session.mfi - session.bottom_mfi;
 
         if session.status == "OPEN" {
             let margin_len = self.margin_configuration.len() as u64;
@@ -29,16 +29,21 @@ impl Strategy for HellDiverStrategy {
                     bottom_percent_change,
                     session.margin_position as usize,
                 )
-                && self.is_mfi_approved(session.mfi)
+                && self.is_mfi_approved(
+                    session.mfi,
+                    mfi_bottom_change,
+                    &session.mfi_dir,
+                    session.margin_position as usize,
+                )
             {
                 return BotCommand::Buy(
-                    self.margin_configuration[session.margin_position as usize][2]
+                    self.margin_configuration[session.margin_position as usize].amount_ratio
                         * self.first_buy_in,
                 );
             }
         } else if session.status == "WAIT" {
             if self.is_entry_signal(top_percent_change, bottom_percent_change)
-                && self.is_mfi_approved(session.mfi)
+                && self.is_entry_mfi_approved(session.mfi, mfi_bottom_change, &session.mfi_dir)
             {
                 return BotCommand::Entry(self.first_buy_in);
             }
@@ -48,11 +53,13 @@ impl Strategy for HellDiverStrategy {
     }
 
     fn is_entry_signal(&self, top_percent_change: f64, bottom_percent_change: f64) -> bool {
-        top_percent_change < self.first_entry[0] && bottom_percent_change > self.first_entry[1]
+        top_percent_change < self.entry.price_change_below
+            && bottom_percent_change > self.entry.price_callback
     }
 
     fn is_sell_signal(&self, top_percent_change: f64, avg_percent_change: f64) -> bool {
-        avg_percent_change > self.take_profit_ratio && top_percent_change < self.earning_callback
+        avg_percent_change > self.take_profit.price_change_above
+            && top_percent_change < self.take_profit.price_callback
     }
 
     fn is_avg_buy_signal(
@@ -61,11 +68,23 @@ impl Strategy for HellDiverStrategy {
         bottom_percent_change: f64,
         margin_position: usize,
     ) -> bool {
-        avg_percent_change < self.margin_configuration[margin_position][0]
-            && bottom_percent_change > self.margin_configuration[margin_position][1]
+        avg_percent_change < self.margin_configuration[margin_position].price_change_below
+            && bottom_percent_change > self.margin_configuration[margin_position].price_callback
     }
 
-    fn is_mfi_approved(&self, mfi: f64) -> bool {
-        mfi < 35.0 || mfi == 0.0
+    fn is_entry_mfi_approved(&self, mfi: f64, mfi_bottom_change: f64, mfi_dir: &str) -> bool {
+        mfi < self.entry.mfi_below && mfi_bottom_change > self.entry.mfi_callback && mfi_dir == "UP"
+    }
+
+    fn is_mfi_approved(
+        &self,
+        mfi: f64,
+        mfi_bottom_change: f64,
+        mfi_dir: &str,
+        margin_position: usize,
+    ) -> bool {
+        mfi < self.margin_configuration[margin_position].mfi_below
+            && mfi_bottom_change > self.margin_configuration[margin_position].mfi_callback
+            && mfi_dir == "UP"
     }
 }

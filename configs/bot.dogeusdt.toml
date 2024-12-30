@@ -19,7 +19,7 @@ price_callback = 0.3
 amount_ratio = 1
 
 [parameters.take_profit]
-price_change_above = 2.0
+price_change_above = 1.2
 price_callback = -0.3
 
 [[margin.margin_configuration]]
@@ -30,8 +30,8 @@ price_callback = 0.3
 amount_ratio = 4
 
 [[margin.margin_configuration]]
-mfi_below = 30.0
+mfi_below = 35.0
 mfi_callback = 10.0
 price_change_below = -7.0
-price_callback = 1.0
+price_callback = 0.3
 amount_ratio = 15

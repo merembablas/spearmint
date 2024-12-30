@@ -6,10 +6,10 @@ mod notification;
 mod run;
 mod strategy;
 
-use crate::model::Exchange;
 use bot::BotBuilder;
 use clap::{Parser, Subcommand};
 use connector::binance;
+use model::Exchange;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -106,7 +106,7 @@ fn main() {
                 let kind: model::args::Kind = toml::from_str(&content).unwrap();
 
                 if kind.kind == "bot" {
-                    let bot: model::args::Config = toml::from_str(&content).unwrap();
+                    let bot: model::result::Bot = toml::from_str(&content).unwrap();
                     let config = model::bot::save(bot);
                     cli::display_bot(config);
                 } else if kind.kind == "bind" {
@@ -140,25 +140,7 @@ fn main() {
         },
 
         Some(Commands::Bot { name }) => match model::bot::get(name) {
-            Ok(bot) => cli::display_bot(model::args::Config {
-                title: bot.title,
-                general: model::args::General {
-                    pair: bot.pair,
-                    base: bot.base,
-                    quote: bot.quote,
-                    platform: bot.platform,
-                    strategy: bot.strategy,
-                },
-                parameters: model::args::Parameters {
-                    cycle: bot.parameters.cycle,
-                    first_buy_in: bot.parameters.first_buy_in,
-                    take_profit_ratio: bot.parameters.take_profit_ratio,
-                    earning_callback: bot.parameters.earning_callback,
-                },
-                margin: model::args::Margin {
-                    margin_configuration: bot.margin.margin_configuration,
-                },
-            }),
+            Ok(bot) => cli::display_bot(bot),
             Err(e) => println!("error: {}", e),
         },
 
@@ -171,24 +153,23 @@ fn main() {
         }
 
         Some(Commands::Run { name, duration }) => match model::bot::get(name) {
-            Ok(config) => {
+            Ok(bot) => {
                 let strategy = strategy::helldiver::HellDiverStrategy {
-                    first_buy_in: config.parameters.first_buy_in,
-                    first_entry: vec![-2.0, 0.5],
-                    take_profit_ratio: config.parameters.take_profit_ratio,
-                    earning_callback: config.parameters.earning_callback,
-                    margin_configuration: config.margin.margin_configuration,
+                    first_buy_in: bot.parameters.first_buy_in,
+                    entry: bot.parameters.entry,
+                    take_profit: bot.parameters.take_profit,
+                    margin_configuration: bot.margin.margin_configuration,
                 };
-                let credential = model::bind::get(&config.platform);
+                let credential = model::bind::get(&bot.platform);
                 let account =
                     binance::Connector::from_credential(credential.api, credential.secret);
                 let bot =
                     BotBuilder::<binance::Connector, strategy::helldiver::HellDiverStrategy>::new()
                         .with_info(bot::BotInfo {
-                            platform: config.platform,
-                            pair: config.pair,
-                            base: config.base,
-                            quote: config.quote,
+                            platform: bot.platform,
+                            pair: bot.pair,
+                            base: bot.base,
+                            quote: bot.quote,
                         })
                         .with_strategy(strategy)
                         .with_connector(account)
@@ -207,7 +188,10 @@ fn main() {
         }
 
         Some(Commands::Test {}) => {
-            println!("test");
+            let credential = model::bind::get("binance");
+            let account = binance::Connector::from_credential(credential.api, credential.secret);
+            account.fetch_server_time();
+            account.get_today_pnl();
         }
 
         Some(Commands::Notification {

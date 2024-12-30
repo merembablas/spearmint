@@ -3,19 +3,89 @@ use crate::model::result;
 use binance::account;
 use binance::api::*;
 use binance::general;
+use binance::market;
+use binance::model::TradeHistory;
+use chrono::{Duration, Utc};
 
 pub const PLATFORM: &str = "binance";
 
 pub struct Connector {
     account: account::Account,
     general: general::General,
+    market: market::Market,
 }
 
 impl Connector {
     pub fn from_credential(api_key: String, api_secret: String) -> Self {
         Self {
             account: Binance::new(Some(api_key.clone()), Some(api_secret.clone())),
-            general: Binance::new(Some(api_key), Some(api_secret)),
+            general: Binance::new(Some(api_key.clone()), Some(api_secret.clone())),
+            market: Binance::new(Some(api_key), Some(api_secret)),
+        }
+    }
+
+    pub fn get_today_pnl(&self) {
+        let now = Utc::now();
+        let twenty_four_hours_ago = now - Duration::hours(24);
+
+        let start_ms = twenty_four_hours_ago.timestamp_millis() as u64;
+        let today_trades = self.get_trades("PENGUUSDT");
+
+        let bnb_usdt_price = self.get_price("BNBUSDT").unwrap_or(0.0);
+        println!("Current BNB/USDT price: {:.2}", bnb_usdt_price);
+
+        // Calculate PnL
+        if let Some(trades) = today_trades {
+            let today_pnl = self.calculate_pnl(&trades, bnb_usdt_price, start_ms);
+            println!("Today's PnL: {:.2} USDT", today_pnl);
+        } else {
+            println!("No trades found for today.");
+        }
+    }
+
+    pub fn get_trades(&self, pair: &str) -> Option<Vec<TradeHistory>> {
+        match self.account.trade_history(pair) {
+            Ok(trades) => Some(trades),
+            Err(err) => {
+                println!("Error fetching trade history: {:?}", err);
+                None
+            }
+        }
+    }
+
+    pub fn get_price(&self, pair: &str) -> Option<f64> {
+        match self.market.get_price(pair) {
+            Ok(price) => Some(price.price),
+            Err(_) => None,
+        }
+    }
+
+    fn calculate_pnl(&self, trades: &[TradeHistory], comm_price: f64, start: u64) -> f64 {
+        let mut total_buy = 0.0;
+        let mut pnl = 0.0;
+
+        for trade in trades.iter() {
+            if start > trade.time || (!trade.is_buyer && total_buy == 0.0) {
+                continue;
+            }
+            println!("{:?}", trade);
+            let commission = trade.commission.parse::<f64>().unwrap_or(0.0);
+
+            if trade.is_buyer {
+                total_buy += (trade.qty * trade.price) + (commission * comm_price);
+            } else {
+                pnl += (trade.qty * trade.price) - (commission * comm_price) - total_buy;
+                total_buy = 0.0;
+            }
+        }
+
+        pnl
+    }
+
+    pub fn fetch_server_time(&self) {
+        match self.general.get_server_time() {
+            Ok(server_time) => println!("Binance Server Time: {}", server_time.server_time),
+            Err(err) => println!("Error fetching server time: {:?}", err),
         }
     }
 }

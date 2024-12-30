@@ -1,14 +1,14 @@
-use super::{args, result};
+use super::result;
 use rusqlite::{params, Connection, Result};
 
-pub fn save(config: args::Config) -> args::Config {
+pub fn save(config: result::Bot) -> result::Bot {
     let conn = Connection::open(super::DB_PATH).unwrap();
 
     let mut stmt = conn
         .prepare("SELECT id FROM bots WHERE pair=:pair AND platform=:platform LIMIT 1")
         .unwrap();
-    let pair = &config.general.pair;
-    let platform = &config.general.platform;
+    let pair = &config.pair;
+    let platform = &config.platform;
     let bots: Vec<Result<u64>> = stmt
         .query_map([pair, platform], |row| Ok(row.get(0)?))
         .unwrap()
@@ -26,21 +26,21 @@ pub fn save(config: args::Config) -> args::Config {
                 strategy=?6,
                 cycle=?7,
                 first_buy_in=?8,
-                take_profit_ratio=?9,
-                earning_callback=?10,
+                entry=?9,
+                take_profit=?10,
                 margin=?11
             WHERE id=?12",
             params![
                 config.title,
-                config.general.pair,
-                config.general.base,
-                config.general.quote,
-                config.general.platform,
-                config.general.strategy,
+                config.pair,
+                config.base,
+                config.quote,
+                config.platform,
+                config.strategy,
                 config.parameters.cycle,
                 config.parameters.first_buy_in,
-                config.parameters.take_profit_ratio,
-                config.parameters.earning_callback,
+                serde_json::to_string(&config.parameters.entry).unwrap(),
+                serde_json::to_string(&config.parameters.take_profit).unwrap(),
                 serde_json::to_string(&config.margin.margin_configuration).unwrap(),
                 bot.unwrap()
             ],
@@ -57,22 +57,22 @@ pub fn save(config: args::Config) -> args::Config {
                 strategy,
                 cycle,
                 first_buy_in,
-                take_profit_ratio,
-                earning_callback,
+                entry,
+                take_profit,
                 margin,
                 status
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'PAUSED')",
             params![
                 config.title,
-                config.general.pair,
-                config.general.base,
-                config.general.quote,
-                config.general.platform,
-                config.general.strategy,
+                config.pair,
+                config.base,
+                config.quote,
+                config.platform,
+                config.strategy,
                 config.parameters.cycle,
                 config.parameters.first_buy_in,
-                config.parameters.take_profit_ratio,
-                config.parameters.earning_callback,
+                serde_json::to_string(&config.parameters.entry).unwrap(),
+                serde_json::to_string(&config.parameters.take_profit).unwrap(),
                 serde_json::to_string(&config.margin.margin_configuration).unwrap()
             ],
         )
@@ -89,6 +89,8 @@ pub fn get(name: &str) -> Result<result::Bot> {
         .unwrap();
     let mut bots: Vec<Result<result::Bot>> = stmt
         .query_map([name], |row| {
+            let entry: String = row.get(9)?;
+            let take_profit: String = row.get(10)?;
             let margin_configuration: String = row.get(11)?;
 
             Ok(result::Bot {
@@ -101,8 +103,8 @@ pub fn get(name: &str) -> Result<result::Bot> {
                 parameters: result::Parameters {
                     cycle: row.get(7)?,
                     first_buy_in: row.get(8)?,
-                    take_profit_ratio: row.get(9)?,
-                    earning_callback: row.get(10)?,
+                    entry: serde_json::from_str(&entry).unwrap(),
+                    take_profit: serde_json::from_str(&take_profit).unwrap(),
                 },
                 margin: result::Margin {
                     margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),
@@ -120,6 +122,8 @@ pub fn all() -> Result<Vec<result::Bot>> {
     let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn.prepare("SELECT * FROM bots")?;
     let bots = stmt.query_map([], |row| {
+        let entry: String = row.get(9)?;
+        let take_profit: String = row.get(10)?;
         let margin_configuration: String = row.get(11)?;
 
         Ok(result::Bot {
@@ -132,8 +136,8 @@ pub fn all() -> Result<Vec<result::Bot>> {
             parameters: result::Parameters {
                 cycle: row.get(7)?,
                 first_buy_in: row.get(8)?,
-                take_profit_ratio: row.get(9)?,
-                earning_callback: row.get(10)?,
+                entry: serde_json::from_str(&entry).unwrap(),
+                take_profit: serde_json::from_str(&take_profit).unwrap(),
             },
             margin: result::Margin {
                 margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),
@@ -155,6 +159,8 @@ pub fn active() -> Result<Vec<result::Bot>> {
     let conn = Connection::open(super::DB_PATH).unwrap();
     let mut stmt = conn.prepare("SELECT * FROM bots WHERE status='ACTIVE'")?;
     let bots = stmt.query_map([], |row| {
+        let entry: String = row.get(9)?;
+        let take_profit: String = row.get(10)?;
         let margin_configuration: String = row.get(11)?;
 
         Ok(result::Bot {
@@ -167,8 +173,8 @@ pub fn active() -> Result<Vec<result::Bot>> {
             parameters: result::Parameters {
                 cycle: row.get(7)?,
                 first_buy_in: row.get(8)?,
-                take_profit_ratio: row.get(9)?,
-                earning_callback: row.get(10)?,
+                entry: serde_json::from_str(&entry).unwrap(),
+                take_profit: serde_json::from_str(&take_profit).unwrap(),
             },
             margin: result::Margin {
                 margin_configuration: serde_json::from_str(&margin_configuration).unwrap(),

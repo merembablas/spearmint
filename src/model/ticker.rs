@@ -85,7 +85,7 @@ pub fn run(path: &str) {
 
     let endpoints: Vec<String> = bots
         .iter()
-        .map(|bot| format!("{}@kline_5m", bot.pair.to_lowercase()))
+        .map(|bot| format!("{}@kline_1m", bot.pair.to_lowercase()))
         .collect();
 
     web_socket.connect_multiple_streams(&endpoints).unwrap();

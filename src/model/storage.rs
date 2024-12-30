@@ -153,8 +153,9 @@ pub fn get_latest_state(platform: &str, pair: &str) -> Result<result::BotState> 
                 margin_position: row.get(3)?,
                 top_price: row.get(4)?,
                 bottom_price: row.get(5)?,
-                platform: row.get(6)?,
-                timestamp: row.get(7)?,
+                bottom_mfi: row.get(6)?,
+                platform: row.get(7)?,
+                timestamp: row.get(8)?,
             })
         })
         .unwrap()
@@ -176,15 +177,17 @@ pub fn create_bot_state(state: result::BotState) {
         margin_position,
         top_price,
         bottom_price,
+        bottom_mfi,
         platform,
         timestamp
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             state.pair,
             state.cycle,
             state.margin_position,
             state.top_price,
             state.bottom_price,
+            state.bottom_mfi,
             state.platform,
             state.timestamp
         ],
@@ -210,6 +213,17 @@ pub fn update_bottom_price(id: u64, bottom_price: f64) {
             bottom_price=?1
         WHERE id=?2",
         params![bottom_price, id],
+    )
+    .unwrap();
+}
+
+pub fn update_bottom_mfi(id: u64, bottom_mfi: f64) {
+    let conn = Connection::open(DB_PATH).unwrap();
+    conn.execute(
+        "UPDATE bot_states SET
+            bottom_mfi=?1
+        WHERE id=?2",
+        params![bottom_mfi, id],
     )
     .unwrap();
 }
@@ -276,21 +290,23 @@ pub fn create_ticker(path: &str, ticker: result::Ticker) {
     .unwrap();
 }
 
-pub fn get_latest_mfi(pair: &str) -> f64 {
+pub fn get_latest_mfi(pair: &str) -> [f64; 2] {
     let conn = Connection::open(DB_DATA_PATH).unwrap();
     let mut stmt = conn
-        .prepare("SELECT mfi FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT 1")
+        .prepare("SELECT mfi FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT 2")
         .unwrap();
     let mut tickers: Vec<Result<f64>> = stmt
         .query_map([pair], |row| Ok(row.get(0)?))
         .unwrap()
         .collect();
 
-    if tickers.len() > 0 {
-        tickers.remove(0).unwrap()
-    } else {
-        0.0
+    let mut ticks = [0.0, 0.0];
+    if tickers.len() > 1 {
+        ticks[0] = tickers.remove(0).unwrap();
+        ticks[1] = tickers.remove(0).unwrap();
     }
+
+    ticks
 }
 
 pub fn get_tickers(pair: &str, limit: u64) -> Vec<Result<result::Ticker>> {

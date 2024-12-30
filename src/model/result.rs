@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Bot {
     pub title: String,
     pub pair: String,
@@ -11,17 +13,32 @@ pub struct Bot {
     pub status: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Parameters {
     pub cycle: String,
     pub first_buy_in: f64,
-    pub take_profit_ratio: f64,
-    pub earning_callback: f64,
+    pub entry: OpenCriteria,
+    pub take_profit: CloseCriteria,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Margin {
-    pub margin_configuration: Vec<Vec<f64>>,
+    pub margin_configuration: Vec<OpenCriteria>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct OpenCriteria {
+    pub mfi_below: f64,
+    pub mfi_callback: f64,
+    pub price_change_below: f64,
+    pub price_callback: f64,
+    pub amount_ratio: f64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CloseCriteria {
+    pub price_change_above: f64,
+    pub price_callback: f64,
 }
 
 #[derive(Debug, Default)]
@@ -43,6 +60,7 @@ pub struct BotState {
     pub margin_position: u64,
     pub top_price: f64,
     pub bottom_price: f64,
+    pub bottom_mfi: f64,
     pub platform: String,
     pub timestamp: u64,
 }

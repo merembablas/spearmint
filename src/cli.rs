@@ -2,38 +2,35 @@ use comfy_table::Table;
 
 use crate::model;
 
-pub fn display_bot(package_info: model::args::Config) {
+pub fn display_bot(bot: model::result::Bot) {
     let mut table = Table::new();
     table
         .set_header(vec!["Name", "Value"])
-        .add_row(vec!["Title", &package_info.title])
-        .add_row(vec!["Pair", &package_info.general.pair])
-        .add_row(vec!["Base", &package_info.general.base])
-        .add_row(vec!["Quote", &package_info.general.quote])
-        .add_row(vec!["Platform", &package_info.general.platform])
-        .add_row(vec!["Strategy", &package_info.general.strategy])
-        .add_row(vec!["Cycle", &package_info.parameters.cycle])
+        .add_row(vec!["Title", &bot.title])
+        .add_row(vec!["Pair", &bot.pair])
+        .add_row(vec!["Base", &bot.base])
+        .add_row(vec!["Quote", &bot.quote])
+        .add_row(vec!["Platform", &bot.platform])
+        .add_row(vec!["Strategy", &bot.strategy])
+        .add_row(vec!["Cycle", &bot.parameters.cycle])
         .add_row(vec![
             "First Buy In",
-            &format!("{}", package_info.parameters.first_buy_in),
+            &format!("{}", bot.parameters.first_buy_in),
         ])
+        .add_row(vec!["Entry", &format!("{:?}", bot.parameters.entry)])
         .add_row(vec![
-            "Take Profit Ratio",
-            &format!("{}", package_info.parameters.take_profit_ratio),
-        ])
-        .add_row(vec![
-            "Earning Callback",
-            &format!("{}", package_info.parameters.earning_callback),
+            "Take Profit",
+            &format!("{:?}", bot.parameters.take_profit),
         ]);
 
     println!("{}", table);
 
     let mut margin_table = Table::new();
-    margin_table.set_header(vec!["Margin", "Allocation"]);
-    let mut margin_configuration = package_info.margin.margin_configuration;
+    margin_table.set_header(vec!["Margin"]);
+    let mut margin_configuration = bot.margin.margin_configuration;
     margin_configuration.reverse();
     while let Some(set) = margin_configuration.pop() {
-        margin_table.add_row(&set);
+        margin_table.add_row(vec![&format!("{:?}", &set)]);
     }
 
     println!("{}", margin_table);
