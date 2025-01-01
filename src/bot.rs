@@ -86,45 +86,53 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
         match command {
             BotCommand::Pause() => println!("Waiting good signal"),
             BotCommand::Entry(amount) => {
-                let transaction =
-                    connector.market_buy_using_quote_quantity(info.pair.clone(), amount);
+                let quote_balance = connector.get_balance(info.quote.clone());
 
-                storage::create_trade(result::Trade {
-                    pair: info.pair.clone(),
-                    cycle: trade.cycle,
-                    price: transaction.price,
-                    qty: transaction.qty,
-                    platform: info.platform.clone(),
-                    status: String::from("OPEN"),
-                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
-                });
+                if quote_balance.free >= amount {
+                    let transaction =
+                        connector.market_buy_using_quote_quantity(info.pair.clone(), amount);
 
-                let capital = connector.get_balance(info.quote.clone());
-                storage::update_wallet(&info.quote, capital.free);
+                    storage::create_trade(result::Trade {
+                        pair: info.pair.clone(),
+                        cycle: trade.cycle,
+                        price: transaction.price,
+                        qty: transaction.qty,
+                        platform: info.platform.clone(),
+                        status: String::from("OPEN"),
+                        timestamp: chrono::offset::Utc::now().timestamp() as u64,
+                    });
 
-                println!("Entry signal {}", amount)
+                    let capital = connector.get_balance(info.quote.clone());
+                    storage::update_wallet(&info.quote, capital.free);
+
+                    println!("Entry signal {}", amount);
+                }
             }
             BotCommand::Buy(amount) => {
-                let transaction =
-                    connector.market_buy_using_quote_quantity(info.pair.clone(), amount);
+                let quote_balance = connector.get_balance(info.quote.clone());
 
-                storage::create_trade(result::Trade {
-                    pair: info.pair.clone(),
-                    cycle: state.cycle,
-                    price: transaction.price,
-                    qty: transaction.qty,
-                    platform: info.platform.clone(),
-                    status: String::from("OPEN"),
-                    timestamp: chrono::offset::Utc::now().timestamp() as u64,
-                });
+                if quote_balance.free >= amount {
+                    let transaction =
+                        connector.market_buy_using_quote_quantity(info.pair.clone(), amount);
 
-                storage::update_margin_position(state.id, state.margin_position + 1);
-                storage::update_bottom_mfi(state.id, mfi[0]);
+                    storage::create_trade(result::Trade {
+                        pair: info.pair.clone(),
+                        cycle: state.cycle,
+                        price: transaction.price,
+                        qty: transaction.qty,
+                        platform: info.platform.clone(),
+                        status: String::from("OPEN"),
+                        timestamp: chrono::offset::Utc::now().timestamp() as u64,
+                    });
 
-                let capital = connector.get_balance(info.quote.clone());
-                storage::update_wallet(&info.quote, capital.free);
+                    storage::update_margin_position(state.id, state.margin_position + 1);
+                    storage::update_bottom_mfi(state.id, mfi[0]);
 
-                println!("Buy signal {}", amount)
+                    let capital = connector.get_balance(info.quote.clone());
+                    storage::update_wallet(&info.quote, capital.free);
+
+                    println!("Buy signal {}", amount);
+                }
             }
             BotCommand::Sell() => {
                 let qty = connector.get_balance(info.base.clone());
@@ -165,7 +173,7 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
 
         if price < bottom_price {
             storage::update_bottom_price(id, price);
-        } else if price > avg_price && bottom_price != avg_price {
+        } else if price > avg_price && bottom_price != avg_price && avg_price != 0.0 {
             storage::update_bottom_price(id, avg_price);
         }
     }

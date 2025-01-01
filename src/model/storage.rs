@@ -136,6 +136,10 @@ pub fn get_avg_price(platform: &str, pair: &str, cycle: u64) -> f64 {
         total_qty += item.qty;
     }
 
+    if total_qty == 0.0 {
+        return 0.0;
+    }
+
     total_amount / total_qty
 }
 
