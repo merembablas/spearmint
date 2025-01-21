@@ -26,7 +26,7 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
         let trade = storage::get_latest_trade(&info.platform, &info.pair).unwrap();
         let state = storage::get_latest_state(&info.platform, &info.pair).unwrap();
         let avg_price = storage::get_avg_price(&info.platform, &info.pair, state.cycle);
-        let mfi = storage::get_latest_mfi(&info.pair);
+        let mfi = storage::get_latest_mfi1m(&info.pair);
         let mfi_dir = if mfi[0] > mfi[1] {
             "UP".to_string()
         } else {
@@ -84,7 +84,7 @@ impl<T: Exchange, S: Strategy> Bot<T, S> {
         let command = self.strategy.as_ref().unwrap().run(price, session);
 
         match command {
-            BotCommand::Pause() => println!("Waiting good signal"),
+            BotCommand::Pause() => {}
             BotCommand::Entry(amount) => {
                 let quote_balance = connector.get_balance(info.quote.clone());
 

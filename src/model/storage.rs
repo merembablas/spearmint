@@ -335,3 +335,45 @@ pub fn get_tickers(pair: &str, limit: u64) -> Vec<Result<result::Ticker>> {
 
     tickers
 }
+
+pub fn get_latest_price(path: &str, pair: &str) -> result::Ticker {
+    let conn = Connection::open(path).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT * FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT 1")
+        .unwrap();
+    let mut tickers: Vec<Result<result::Ticker>> = stmt
+        .query_map([pair], |row| {
+            Ok(result::Ticker {
+                pair: row.get(1)?,
+                open: row.get(3)?,
+                high: row.get(4)?,
+                low: row.get(5)?,
+                close: row.get(6)?,
+                volume: row.get(7)?,
+                mfi: row.get(8)?,
+            })
+        })
+        .unwrap()
+        .collect();
+
+    tickers.remove(0).unwrap()
+}
+
+pub fn get_latest_mfi1m(pair: &str) -> [f64; 2] {
+    let conn = Connection::open("ticker1m.db").unwrap();
+    let mut stmt = conn
+        .prepare("SELECT mfi FROM tickers WHERE pair=:pair ORDER BY timestamp DESC LIMIT 2")
+        .unwrap();
+    let mut tickers: Vec<Result<f64>> = stmt
+        .query_map([pair], |row| Ok(row.get(0)?))
+        .unwrap()
+        .collect();
+
+    let mut ticks = [0.0, 0.0];
+    if tickers.len() > 1 {
+        ticks[0] = tickers.remove(0).unwrap();
+        ticks[1] = tickers.remove(0).unwrap();
+    }
+
+    ticks
+}
