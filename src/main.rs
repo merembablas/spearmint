@@ -95,7 +95,7 @@ enum Commands {
         duration: u64,
     },
 
-    RunAll {
+    All {
         #[clap(short, long, default_value = "30")]
         duration: u64,
     },
@@ -211,7 +211,7 @@ fn main() {
             model::ticker::run(path);
         }
 
-        Some(Commands::RunAll { duration }) => {
+        Some(Commands::All { duration }) => {
             let bots = model::bot::active().unwrap();
             run::run_all(bots, *duration);
         }
