@@ -55,11 +55,12 @@ enum Commands {
         #[clap(short, long)]
         name: String,
     },
-    /*
+
     Tick {
         #[clap(short, long, default_value = "spearmint_data.db")]
         path: String,
-    },*/
+    },
+
     List {},
 
     Notification {
@@ -94,7 +95,7 @@ enum Commands {
         duration: u64,
     },
 
-    All {
+    RunAll {
         #[clap(short, long, default_value = "30")]
         duration: u64,
     },
@@ -205,12 +206,14 @@ fn main() {
         }) => {
             notification::telegram::run(token.clone(), *chat_id, *duration);
         }
-        /*
+
         Some(Commands::Tick { path }) => {
             model::ticker::run(path);
-        }*/
-        Some(Commands::All { duration }) => {
+        }
+
+        Some(Commands::RunAll { duration }) => {
             let bots = model::bot::active().unwrap();
+
             run::run_all(bots, *duration);
         }
 

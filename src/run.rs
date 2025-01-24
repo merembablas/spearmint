@@ -5,10 +5,12 @@ use crate::model::{result, storage, Exchange, Strategy};
 use crate::strategy;
 use binance::websockets::*;
 use comfy_table::Table;
+use log::error;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::{fs, panic};
 
 pub fn run(bot: Arc<super::bot::Bot<impl Exchange, impl Strategy>>, duration: u64) {
     let keep_running = AtomicBool::new(true);
@@ -92,6 +94,20 @@ pub fn run(bot: Arc<super::bot::Bot<impl Exchange, impl Strategy>>, duration: u6
 }
 
 pub fn run_all(bots: Vec<result::Bot>, duration: u64) {
+    if let Err(e) = setup_logger() {
+        eprintln!("Failed to set up logger: {}", e);
+        return;
+    }
+
+    panic::set_hook(Box::new(|info| {
+        let panic_message = match info.payload().downcast_ref::<&str>() {
+            Some(msg) => *msg,
+            None => "Unknown panic message.",
+        };
+
+        error!("Application panicked: {}", panic_message);
+    }));
+
     loop {
         print!("{esc}c", esc = 27 as char);
 
@@ -173,4 +189,29 @@ pub fn run_all(bots: Vec<result::Bot>, duration: u64) {
 
         thread::sleep(Duration::from_secs(duration));
     }
+}
+
+fn setup_logger() -> Result<(), Box<dyn std::error::Error>> {
+    let log_file_path = "error.log";
+
+    fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(log_file_path)?;
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{} [{}] {}",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .level_for("my_crate", log::LevelFilter::Error)
+        .chain(fern::log_file(log_file_path)?)
+        .apply()?;
+    Ok(())
 }

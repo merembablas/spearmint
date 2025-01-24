@@ -1,5 +1,4 @@
-use futures_util::{SinkExt, StreamExt};
-use serde::Deserialize;
+use futures_util::StreamExt;
 use tokio_tungstenite::connect_async;
 
 #[tokio::main]
@@ -33,10 +32,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
+/*
 #[derive(Deserialize)]
 struct BinanceFundingUpdate {
     symbol: String,
     mark_price: String,
     funding_rate: String,
 }
+ */
